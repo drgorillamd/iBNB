@@ -8,10 +8,10 @@ Total Supply - 1 QT
 
 Burn - 300T
 Team - 40T
-Marketing - 40T
-Private - 36T  (Need to speak to dr gorilla about this)
+Marketing - 45T
+Private - 27T  (Split between the team and airdropped into separate wallets in randomly sized chunks to avoid any questions)
 Presale - 250T
-Public - 334T
+Public - 338T
 
 Pre sale/Launch:
 
@@ -36,6 +36,8 @@ Spare funds at softcap - $10,200
 
 MC at pre sale - $476,000
 MC at public launch - $595,000
+
+**MC figures dependant on pre sale filling up and no more tokens burnt.
 */
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -50,7 +52,7 @@ using SafeMath for uint256;
 // -- variables --
 
     mapping (address => uint256) whitelist;
-    mapping (address => uint256) bought;
+    mapping (address => uint256) BNBbought;
 
     enum status {
       beforeSale,
@@ -111,27 +113,31 @@ using SafeMath for uint256;
 
 // -- Presale flow --
 
-    //@dev contract starts with whole supply
-    //     will revert when < 0 token available
-    function tokenLeft() public view returns (uint256) {
-      uint256 already_sold = init_balance.sub(token.balanceOf(address(this)));
-      uint256 ten_percent = token.totalSupply().div(10);
-      return (ten_percent.sub(already_sold, "Sale: No more token to sell")).div(10**decimal); //10%TS - already sold < 0 ?
+    //@dev contract starts with presale+public
+    //     will revert when < 338T token available
+    function tokenLeftForSale() public view returns (uint256) {
+      return token.balanceOf(address(this).sub(338 * 10**12, "Sale: No more token to sell")); //10%TS - already sold < 0 ?
     }
 
 
     function buy() external payable duringSale {
-      require(msg.value <= 5 * 10**18, "Sale: Above max amount"); // 5 BNB
+      require(msg.value.add(BNBbought[msg.sender]) <= 2 * 10**18, "Sale: Above max amount"); // 2 BNB
       require(msg.value >= 2 * 10**17, "Sale: Under min amount"); // 0.2 BNB
 
       uint256 amountToken = msg.value.mul(nbOfTokenPerBNB).div(10**18);
       require(amountToken <= tokenLeft(), "Sale: Not enough token left");
 
-      token.transfer(msg.sender, amountToken.mul(10**decimal));
-      emit Buy(msg.sender, msg.value, amountToken.mul(10**decimal));
+
+      ;
+      emit (msg.sender, msg.value, amountToken.mul(10**decimal));
     }
 
 // -- post sale --
+
+    function claim() external postSale {
+
+      token.transfer(msg.sender, amountToken.mul(10**decimal));
+    }
 
     //@dev convert BNB received and token left in pool liquidity. LP send to owner.
     //     Uni Router handles both scenario : existing and non-existing pair

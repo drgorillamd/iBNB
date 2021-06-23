@@ -9,7 +9,7 @@ Total Supply - 1 QT
 Burn - 300T
 Team - 40T
 Marketing - 45T
-Private - 27T  (Split between the team and airdropped into separate wallets in randomly sized chunks to avoid any questions)
+Private - 27T  
 Presale - 250T
 Public - 338T
 
@@ -51,8 +51,8 @@ using SafeMath for uint256;
 
 // -- variables --
 
-    mapping (address => bool) whitelist;
-    mapping (address => uint256) BNBbought;
+    mapping (address => uint256) amountBought;
+    mapping (address => bool) whiteListed;
 
     enum status {
       beforeSale,
@@ -65,6 +65,9 @@ using SafeMath for uint256;
     uint256 public presale_token_per_BNB = 500000000000;  //pre-sale price (500b/1BNB)
     uint256 public public_token_per_BNB = 400000000000; //public pancake listing (400b/1BNB)
     uint256 private init_balance;
+    uint256 private whiteQuota;
+    uint256 private presaleQuota;
+    uint256 private liquidityQuota;
 
     uint256 decimal;
     ERC20 public iBNB_token;
@@ -80,12 +83,12 @@ using SafeMath for uint256;
     }
 
     modifier ongoingSale() {
-      require(sale_status == status.ongoingSale, "Sale: not ongoing");
+      require(sale_status == status.ongoingSale, "Sale: already started");
       _;
     }
 
     modifier postSale() {
-      require(sale_status == status.postSale, "Sale: not in postSale");
+      require(sale_status == status.postSale, "Sale: not ended yet");
       _;
     }
 
@@ -103,15 +106,22 @@ using SafeMath for uint256;
 // -- before sale --
 
     //@dev retain whitelisting capacity during the sale (ie too much "zombies" not coming)
+    // allowance max is 2BNB, +10**18 to flag whitelisted accounts (ie non-whitelisted == 0)
+    // in claim() 
     function addBlockWhitelist(address[50] memory _adr) external onlyOwner {
-      for(uint256 i=0; i<256; i++) {
-        whitelist[_adr[i]] = true;
+      for(uint256 i=0; i<50; i++) {
+        whiteListed[_adr[i]] = true;
       }
+    }
+
+    function addWhitelist(address _adr) external onlyOwner {
+      require(whiteListed[_adr] == false, "Already whitelisted");
+      whiteListed[_adr] = true;
     }
 
 // -- Presale launch --
 
-    function startWhitelistSale() external beforeSale onlyOwner {
+    function startSale() external beforeSale onlyOwner {
       sale_status = status.ongoingSale;
       init_balance = iBNB_token.balanceOf(address(this));
     }
@@ -120,29 +130,37 @@ using SafeMath for uint256;
 
     //@dev contract starts with presale+public
     //     will revert when < 338T token available
-    function tokenLeftForSale() public view returns (uint256) {
-      return iBNB_token.balanceOf(address(this)).sub(338 * 10**12, "Sale: No more token to sell");
+    function tokenLeftForPrivateSale() public view returns (uint256) {
+      return iBNB_token.balanceOf(address(this)).sub(whiteQuota).sub(liquidityQuota, "Private sale: No more token to sell");
+    }
+
+    function tokenLeftForWhitelistSale() public view returns (uint256) {
+      return iBNB_token.balanceOf(address(this)).sub(presaleQuota).sub(liquidityQuota, "Whitelist sale: No more token to sell");
     }
 
 
     function buy() external payable ongoingSale {
-      require(msg.value.add(BNBbought[msg.sender]) <= 2 * 10**18, "Sale: Above max amount"); // 2 BNB
-      require(msg.value >= 2 * 10**17, "Sale: Under min amount"); // 0.2 BNB
+      require(msg.value >= 2 * 10**17, "Sale: Under min amount"); // <0.2 BNB
+      require(amountBought[msg.sender].add(msg.value) <= 2*10**18, "Sale: above max amount"); // >2bnb
 
       uint256 amountToken = msg.value.mul(presale_token_per_BNB).div(10**18);
-      require(amountToken <= tokenLeftForSale(), "Sale: Not enough token left");
 
 
-      //add to withdrawable[addr]
-      BNBbought[msg.sender] = BNBbought[msg.sender].add(msg.value);
+      require(amountToken <= tokenLeftForPrivateSale() || (whiteListed[msg.sender] && amountToken <= tokenLeftForWhitelistSale()), "Sale: Not enough token left");
+
+      amountBought[msg.sender] = amountBought[msg.sender].add(msg.value);
       emit Claimable(msg.sender, msg.value, amountToken.mul(10**decimal));
+    }
+
+    function allowanceLeftInBNB() external view returns (uint256) {
+      return 2*10**18 - amountBought[msg.sender];
     }
 
 // -- post sale --
 
     function claim() external postSale {
-      //amount = withdrawablr
-      uint256 amountToken = BNBbought[msg.sender] * presale_token_per_BNB;
+      require(amountBought[msg.sender] > 0, "0 tokens allowed");
+      uint256 amountToken = presale_token_per_BNB.mul(amountBought[msg.sender]);
       iBNB_token.transfer(msg.sender, amountToken.mul(10**decimal));
     }
 
@@ -176,15 +194,14 @@ using SafeMath for uint256;
           block.timestamp
       );
 
-      //burn the non-used tokens
+      //transfer the non-used tokens
       if(iBNB_token.balanceOf(address(this)) != 0) {
-        iBNB_token.transfer(0x000000000000000000000000000000000000dEaD, iBNB_token.balanceOf(address(this)));
+        iBNB_token.transfer(msg.sender, iBNB_token.balanceOf(address(this)));
       }
 
       emit LiquidityTransferred(balance_BNB, balance_token);
       //retrieving BNB left (hopefully 0) + gas optimisation
       selfdestruct(payable(msg.sender));
   }
-
 
 }

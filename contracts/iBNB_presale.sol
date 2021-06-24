@@ -159,8 +159,9 @@ using SafeMath for uint256;
 // -- post sale --
 
     function claim() external postSale {
-      require(amountBought[msg.sender] > 0, "0 tokens allowed");
-      uint256 amountToken = presale_token_per_BNB.mul(amountBought[msg.sender]);
+      require(amountBought[msg.sender] > 0, "0 tokens to claim");
+      uint256 amountToken = presale_token_per_BNB.mul(amountBought[msg.sender]).div(10**18);
+      amountBought[msg.sender] = 0;
       iBNB_token.transfer(msg.sender, amountToken.mul(10**decimal));
     }
 

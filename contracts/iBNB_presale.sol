@@ -91,6 +91,7 @@ using SafeMath for uint256;
       require(sale_status == status.postSale, "Sale: not ended yet");
       _;
     }
+    
 
 // -- init --
 
@@ -108,15 +109,16 @@ using SafeMath for uint256;
     //@dev retain whitelisting capacity during the sale (ie too much "zombies" not coming)
     // allowance max is 2BNB, +10**18 to flag whitelisted accounts (ie non-whitelisted == 0)
     // in claim() 
-    function addBlockWhitelist(address[50] memory _adr) external onlyOwner {
-      for(uint256 i=0; i<50; i++) {
-        whiteListed[_adr[i]] = true;
+    function addBlockWhitelist(address[] calldata _adr) external onlyOwner {
+      for(uint256 i=0; i< _adr.length; i++) {
+      	if(whiteListed[_adr[i]] == false) {
+          whiteListed[_adr[i]] = true;
+        }
       }
     }
 
-    function addWhitelist(address _adr) external onlyOwner {
-      require(whiteListed[_adr] == false, "Already whitelisted");
-      whiteListed[_adr] = true;
+    function saleStatus() external view returns(uint256) {
+      return uint256(sale_status);
     }
 
 // -- Presale launch --
@@ -154,6 +156,10 @@ using SafeMath for uint256;
 
     function allowanceLeftInBNB() external view returns (uint256) {
       return 2*10**18 - amountBought[msg.sender];
+    }
+    
+    function amountTokenBought() external view returns (uint256) {
+      return amountBought[msg.sender].mul(presale_token_per_BNB).div(10**18);
     }
 
 // -- post sale --

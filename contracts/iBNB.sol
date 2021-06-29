@@ -1,31 +1,37 @@
-// SPDX-License-Identifier: GPL
+// SPDX-License-Identifier: GPL - @DrGorilla_md (Tg/Twtr)
 
 pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 /**
- * @dev iBNB
+ * $iBNB Token
  *
  * Every tx is subject to:
  * - a sell tax, at fixed tranches (see selling_taxes_tranches and selling_taxes_rates - above the last threshold, th tx revert).
       the sell tax is applicable on tx to the uni/pancake pool. This tax goes to the reward pool.
- * - 0.1% flat to the team wallet
+ * - 0.1% flat to the "flexible" wallet -> burn initialy, can be fitted to new projects on the long run
  * - 9.9% to the balancer (which, in turn, fill 2 internal "pools" via the pro_balances struct: reward and liquidity).
  * - a "check and trigger" on both liquidity and reward internal pools -> if they have more token than the threshold, swap is triggered
- *   and BNB are stored in the contract (for the reward subpool) or liquidity is added to the uni pool
+ *   and BNB are stored in the contract (for the reward subpool) or liquidity is added to the uni pool.
+ *   The threshold is adapted to market conditions (via a nodeJS bot)
  *
  * Reward is claimable daily, and is based on the % of the circulating supply (defined as total_supply-dead address balance-pool balance)
  *  owned by the claimer; on the time since the last transfer into owner's wallet module 24; on the BNB balance of the contract :
  *
- *                  reward in BNB = (token owned / circulating supply) * [(current time - last transfer in) % 24] / 1 day * BNB contract balance
+ *           reward in BNB = (token owned / circulating supply) * [(current time - last transfer in) % 24] / 1 day * BNB contract balance
+ *
+ * Feel free to reach out for tech chat Tg/CT: @ DrGorilla_md
+ *
+ *                    -- Godspeed --
  */
 
-contract iBNB is Ownable {
+contract iBNB is Ownable, IERC20 {
     using SafeMath for uint256;
 
     struct past_tx {
@@ -72,8 +78,6 @@ contract iBNB is Ownable {
 
     prop_balances private balancer_balances;
 
-    event Approval(address, address, uint256);
-    event Transfer(address, address, uint256);
     event TaxRatesChanged();
     event SwapForBNB(string);
     event BalancerPools(uint256,uint256);
@@ -81,23 +85,23 @@ contract iBNB is Ownable {
     event AddLiq(string);
     event balancerReset(uint256, uint256);
 
-    constructor (address _router, address _devWallet) {
-
-         _balances[msg.sender] = _totalSupply;
-
+    constructor (address _router) {
          //create pair to get the pair address
          router = IUniswapV2Router02(_router);
          IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
          pair = IUniswapV2Pair(factory.createPair(address(this), router.WETH()));
 
-         LP_recipient = address(0);
-         devWallet = _devWallet;
+         LP_recipient = address(0x000000000000000000000000000000000000dEaD); //LP token: burn
+         devWallet = address(0x000000000000000000000000000000000000dEaD); //0.1%: burn
 
          excluded[msg.sender] = true;
          excluded[address(this)] = true;
-         excluded[devWallet] = true;
+         excluded[devWallet] = true; //exclude burn address from max_tx
 
-         circuit_breaker = true; //ERC20 behavior by default
+         circuit_breaker = true; //ERC20 behavior by default/presale
+         
+         _balances[msg.sender] = _totalSupply;
+         emit Transfer(address(0), msg.sender, _totalSupply);
     }
 
     function decimals() public view returns (uint256) {
@@ -109,24 +113,24 @@ contract iBNB is Ownable {
     function symbol() public view returns (string memory) {
         return _symbol;
     }
-    function totalSupply() public view virtual  returns (uint256) {
+    function totalSupply() public view virtual override returns (uint256) {
         return _totalSupply;
     }
-    function balanceOf(address account) public view virtual  returns (uint256) {
+    function balanceOf(address account) public view virtual override returns (uint256) {
         return _balances[account];
     }
-    function transfer(address recipient, uint256 amount) public virtual  returns (bool) {
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
-    function allowance(address owner, address spender) public view virtual  returns (uint256) {
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
         return _allowances[owner][spender];
     }
-    function approve(address spender, uint256 amount) public virtual  returns (bool) {
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
-    function transferFrom(address sender, address recipient, uint256 amount) public virtual  returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
         _transfer(sender, recipient, amount);
 
         uint256 currentAllowance = _allowances[sender][_msgSender()];
@@ -157,24 +161,33 @@ contract iBNB is Ownable {
 
     function _transfer(address sender, address recipient, uint256 amount) internal virtual {
         require(sender != address(0), "ERC20: transfer from the zero address");
-
-        uint256 senderBalance = _balances[sender]; // gas SLOAD: 200 vs MLOAD: 3 ...
+        
+        uint256 senderBalance = _balances[sender];
         require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
 
         uint256 sell_tax;
         uint256 dev_tax;
         uint256 balancer_amount;
+        
+        //>1 day since last tx
+        if(block.timestamp > _last_tx[sender].last_timestamp + 1 days) {
+          _last_tx[sender].cum_transfer = 0; // a.k.a The Virgin
+        }
+
 
         if(excluded[sender] == false && excluded[recipient] == false && circuit_breaker == false) {
-
-        // ----  Sell tax  ----
+        
           (uint112 _reserve0, uint112 _reserve1,) = pair.getReserves(); // returns reserve0, reserve1, timestamp last tx
           if(address(this) != pair.token0()) { // 0 := iBNB
             (_reserve0, _reserve1) = (_reserve1, _reserve0);
           }
-          sell_tax = sellingTax(sender, amount, _reserve0); //will update the balancer ledger too
-
-        // ------ dev tax 0.1% -------
+          
+        // ----  Sell tax  ----
+          if(recipient == address(pair)) {
+            sell_tax = sellingTax(sender, amount, _reserve0); //will update the balancer ledger too
+          }
+          
+        // ------ "flexible"/dev tax 0.1% -------
           dev_tax = amount.div(1000);
 
         // ------ balancer tax 9.9% ------
@@ -209,11 +222,6 @@ contract iBNB is Ownable {
     function sellingTax(address sender, uint256 amount, uint256 pool_balance) internal returns(uint256 sell_tax) {
         uint16[5] memory _tax_tranches = selling_taxes_tranches;
         past_tx memory sender_last_tx = _last_tx[sender];
-
-        //>1 day since last tx
-        if(block.timestamp > sender_last_tx.last_timestamp + 1 days) {
-          _last_tx[sender].cum_transfer = 0; // a.k.a The Virgin
-        }
 
         uint256 new_cum_sum = amount.add(_last_tx[sender].cum_transfer);
 
@@ -336,7 +344,7 @@ contract iBNB is Ownable {
     //@dev Compute the tax on claimed reward - labelled in BNB (as per team agreement)
     function taxOnClaim(uint256 amount) internal view returns(uint256 tax){
 
-      if(amount > 2 ether) { return amount.mul(claiming_taxes_rates[4]).div(100); } //GIVE US FINNEY'S BACK
+      if(amount > 2 ether) { return amount.mul(claiming_taxes_rates[4]).div(100); }
       else if(amount > 1.50 ether) { return amount.mul(claiming_taxes_rates[3]).div(100); }
       else if(amount > 1 ether) { return amount.mul(claiming_taxes_rates[2]).div(100); }
       else if(amount > 0.5 ether) { return amount.mul(claiming_taxes_rates[1]).div(100); }
@@ -412,7 +420,7 @@ contract iBNB is Ownable {
       circuit_breaker = status;
     }
 
-    //@dev will point to the LP timelock / default = burn
+    //@dev default = burn
     function setLPRecipient(address _LP_recipient) external onlyOwner {
       LP_recipient = _LP_recipient;
     }

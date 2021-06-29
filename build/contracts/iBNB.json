@@ -66587,12 +66587,164 @@
         }
       },
       "links": {},
-      "address": "0x830F7A104a3dF30879D526031D57DAa44BF85686",
-      "transactionHash": "0x6865a3eace5c5db92b3003342f913684a5dc54e291b45193419b52a6dca8a607"
+      "address": "0xf59FCd527Fd078c24fA0c0dE129A0FA8add36FB0",
+      "transactionHash": "0x4f27a4bfd3459e7d05b0b6588755b00d29002059de33bda938ee5aa4d076fb90"
+    },
+    "97": {
+      "events": {
+        "0xacabbd54c23d6a523d8111565d14ae729de6bbe5ea4707cb6162c24d4fae03f4": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "name": "AddLiq",
+          "type": "event"
+        },
+        "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "spender",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            }
+          ],
+          "name": "Approval",
+          "type": "event"
+        },
+        "0xb05a5c60182995cbe8b5d64191ecb58d9ece5049b395067659fd414adf97d5fd": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "name": "BalancerPools",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        "0xfa718b2e3c4eff6c1ad7f30d8799d768c9c9c172a31e28102f58e23bdf2550c7": {
+          "anonymous": false,
+          "inputs": [],
+          "name": "RewardTaxChanged",
+          "type": "event"
+        },
+        "0x63f96232640ee3b5914be68a756c36599d36b83c5f2ca097c9c40afdf6f7fc2d": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "name": "SwapForBNB",
+          "type": "event"
+        },
+        "0x3aaf767b2e63f4c5f274684ce36da44af23d293465914ee94908682af41e6527": {
+          "anonymous": false,
+          "inputs": [],
+          "name": "TaxRatesChanged",
+          "type": "event"
+        },
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            }
+          ],
+          "name": "Transfer",
+          "type": "event"
+        },
+        "0xeac7c420776212140a54f51e3179e218232d622b4fa6556ab2ef0b973c0f5ab0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "name": "balancerReset",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x44Ccbf2c2c2d3A4b493044770a654CB5DF97FF12",
+      "transactionHash": "0xdb83ea757affee6c9cbc8b42e2e89cbcd401b4f86489fd53efa51eb575e72a57"
     }
   },
   "schemaVersion": "3.4.0",
-  "updatedAt": "2021-06-28T17:31:30.598Z",
+  "updatedAt": "2021-06-29T12:11:39.440Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

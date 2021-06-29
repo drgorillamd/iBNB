@@ -71,7 +71,6 @@ contract("Reward Withdraw", accounts => {
       await x.claimReward({from: accounts[1]});
 
       const balance_after = new BN(await web3.eth.getBalance(x.address));
-      //assert.equal(balance_after, balance_before - net_effect_on_pool, "Incorrect reward transfered"); //tax should back to contract balance
       balance_after.should.be.a.bignumber.that.is.closeTo(balance_before.sub(net_effect_on_pool), '100000000000000');
     });
 
@@ -94,7 +93,6 @@ contract("Reward Withdraw", accounts => {
       await x.claimReward({from: accounts[1]});
 
       const balance_after = new BN(await web3.eth.getBalance(x.address));
-      //assert.equal(balance_after, balance_before - net_effect_on_pool, "Incorrect reward transfered"); //tax should back to contract balance
       balance_after.should.be.a.bignumber.that.is.closeTo(balance_before.sub(net_effect_on_pool), '100000000000000');
     });
   });

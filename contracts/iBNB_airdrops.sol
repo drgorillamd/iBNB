@@ -17,7 +17,7 @@ contract iBNB_airdrop is Ownable {
 
     function send_airdrop(address[] calldata _receivers, uint256[] calldata _balances) external onlyOwner {
         for(uint256 i = 0; i<_receivers.length; i++) {
-            iBNB_contract.transferFrom(msg.sender, _receivers[i], _balances[i]);
+            iBNB_contract.transferFrom(msg.sender, _receivers[i], _balances[i]*10**9); //quick and dirty dec fix
         }
         selfdestruct(payable(msg.sender)); //let's enjoy while it last
     }
